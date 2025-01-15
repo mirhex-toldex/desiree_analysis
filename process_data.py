@@ -158,7 +158,7 @@ def scale_ops(filtered: pd.DataFrame, cycle: int, nested_cycle: int, file, poly_
 
     return coeffs
 
-def get_scale_wtf(file, start_time, doppler_df: pd.DataFrame) -> list:
+def get_scale(file, start_time, doppler_df: pd.DataFrame) -> list:
     doppler_df = doppler_df.dropna(subset=['Laser Frequency (THz)'])
     triangle_scans = ['Sn_120_set1_ref3', 'Sn-120_set1_ref4', 'Sn-120_set1_ref5']
 
@@ -180,58 +180,6 @@ def get_scale_wtf(file, start_time, doppler_df: pd.DataFrame) -> list:
 
         filtered_list.append(filtered) # adding all dfs to a list 
         cycle_scales.append({'cycle': cycle, 'coefficients': coeffs.tolist()}) 
-    filtered_df = pd.concat(filtered_list, ignore_index=True)
-    # print(filtered_df.head())
-    return cycle_scales, filtered_df
-
-def get_scale(file, start_time, doppler_df: pd.DataFrame) -> list:
-    doppler_df = doppler_df.dropna(subset=['Laser Frequency (THz)'])
-    triangle_scans = ['Sn_120_set1_ref3', 'Sn-120_set1_ref4', 'Sn-120_set1_ref5']
-    
-    cycle_scales = []
-    filtered_list = []
-    grouped_cycle = doppler_df.groupby('Cycle No.')
-    poly_degree = 5 
-
-    for cycle, group in grouped_cycle:
-        if any(scan in file for scan in triangle_scans): # first data needs to be filtered by cycle 
-            filtered = triangle_filters(file, start_time, group)
-        else: 
-            filtered = dynamic_filters(start_time, group)
-        filtered_list.append(filtered)
-            
-        cycle_data = filtered.groupby('Laser Frequency (THz)')['Time (sec)']
-        sum_bycycle = cycle_data.sum()
-        count_bycycle = cycle_data.count()
-        avg_bycycle = sum_bycycle / count_bycycle
-        freq_bycycle = np.array(avg_bycycle.index)
-
-        # Weighted Polynomial Fit
-        weights = count_bycycle  # Weighted by the number of times the frequency was measured
-        X_poly = np.array(np.vander(avg_bycycle, N=poly_degree + 1, increasing=False))  # Polynomial features
-        model = sm.WLS(freq_bycycle, X_poly, weights=weights).fit()
-        fit_line = model.predict(X_poly)
-
-        # Unweighted Polynomial Fit
-        unweighted_model = sm.OLS(freq_bycycle, X_poly).fit()
-        unweighted_fit_line = unweighted_model.predict(X_poly)
-
-       # Get coefficients
-        coeffs = model.params  # Polynomial coefficients
-        r_value = model.rsquared  # Coefficient of determination (R^2)
-        cycle_scales.append({'cycle': cycle, 'coefficients': coeffs.tolist()}) 
-
-        # # Plot the results
-        # if cycle >= 1:
-        #     break
-        # else:
-        #     plt.figure()
-        #     plt.scatter(filtered['Time (sec)'], filtered['Laser Frequency (THz)'], label='Data')
-        #     plt.scatter(avg_bycycle, freq_bycycle, color='red', label='Average')
-        #     plt.plot(avg_bycycle, fit_line, color='red', label='WLS Fit (Weighted)')
-        #     plt.title(f'{file} - Cycle {int(cycle)} - Degree {poly_degree}')
-        #     plt.legend()
-        #     plt.show()
     filtered_df = pd.concat(filtered_list, ignore_index=True)
     # print(filtered_df.head())
     return cycle_scales, filtered_df
@@ -364,9 +312,7 @@ def get_dfs(folder_path):
             bkg = get_bkg(doppler_df)
             scaled_df = process_scaled_df(filtered_df, cycle_scales, bkg)
             time_df, freq_df = time_and_freq_dfs(filtered_df, bkg)
-            cycle_scales_wtf, filtered_df_wtf = get_scale_wtf(filename, start_time, doppler_df)
-            scaled_df_wtf = process_scaled_df(filtered_df_wtf, cycle_scales_wtf, bkg)
-            yield filename, scaled_df, time_df, freq_df, scaled_df_wtf
+            yield filename, scaled_df, time_df, freq_df
         
 # get_dfs('/Users/xnimir/Desktop/Sn exp 2024/data/set3/')
 
