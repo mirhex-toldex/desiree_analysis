@@ -144,17 +144,17 @@ def scale_ops(filtered: pd.DataFrame, cycle: int, nested_cycle: int, file, poly_
         # plt.plot(avg_bycycle, unweighted_fit_line, color='blue', label='OLS Fit (Unweighted)')
         # plt.show()
     # # Plot the results
-    # if cycle <= 2:
-    #     plt.figure()
-    #     plt.scatter(filtered['Time (sec)'], filtered['Laser Frequency (THz)'], label='Data')
-    #     plt.scatter(avg_bycycle, freq_bycycle, color='red', label='Average')
-    #     plt.plot(avg_bycycle, fit_line, color='red', label='WLS Fit (Weighted)')
-    #     plt.plot(avg_bycycle, unweighted_fit_line, color='blue', label='OLS Fit (Unweighted)')
-    #     plt.title(f'{file} - Cycle {int(cycle)} - Degree {poly_degree}')
-    #     if nested_cycle != 0: 
-    #         plt.title(f'{file} - Cycle {int(cycle)}_{int(nested_cycle)} - Degree {poly_degree}')
-    #     plt.legend()
-    #     plt.show()
+    if cycle <= 2:
+        plt.figure()
+        plt.scatter(filtered['Time (sec)'], filtered['Laser Frequency (THz)'], label='Data')
+        plt.scatter(avg_bycycle, freq_bycycle, color='red', label='Average')
+        plt.plot(avg_bycycle, fit_line, color='red', label='WLS Fit (Weighted)')
+        plt.plot(avg_bycycle, unweighted_fit_line, color='blue', label='OLS Fit (Unweighted)')
+        plt.title(f'{file} - Cycle {int(cycle)} - Degree {poly_degree}')
+        if nested_cycle != 0: 
+            plt.title(f'{file} - Cycle {int(cycle)}_{int(nested_cycle)} - Degree {poly_degree}')
+        plt.legend()
+        plt.show()
 
     return coeffs
 
@@ -173,7 +173,7 @@ def get_scale(file, start_time, doppler_df: pd.DataFrame) -> list:
             nested_cycle = filtered_with_nested_cycle.groupby('Cycle No.') # obj
             for nested_cycle_no, nested_group in nested_cycle:
                 filtered = nested_group # these are the individual dfs 
-                coeffs = scale_ops(filtered, cycle, nested_cycle_no, file, poly_degree)
+                coeffs = scale_ops(filtered, cycle, nested_cycle_no, file, poly_degree=4)
         else: # all other scans not triangle 
             filtered = dynamic_filters(start_time, group) # returns a df that is cycle specific and now filtered 
             coeffs = scale_ops(filtered, cycle, 0, file, poly_degree)
@@ -204,17 +204,11 @@ def process_scaled_df(doppler_df: pd.DataFrame, scale_info: list, bkg: float) ->
     cycle_dfs = []
     for info_by_cycle in scale_info:
         cycle_number = info_by_cycle['cycle']
-        coefs = info_by_cycle['coefficients']
-        a, b, c, d, e, f = coefs
+        coeffs = info_by_cycle['coefficients']
 
         cycle_df = doppler_df[doppler_df['Cycle No.'] == cycle_number].copy() # filter for cycle
-        scaled_cycle_df = (
-            cycle_df
-            .assign(scaled_freq=lambda df: a * df['Time (sec)']**5 + 
-                                   b * df['Time (sec)']**4 + 
-                                   c * df['Time (sec)']**3 + 
-                                   d * df['Time (sec)']**2 + 
-                                   e * df['Time (sec)'] + f)
+        scaled_cycle_df = cycle_df.assign(
+            scaled_freq=lambda df: np.polyval(coeffs, df['Time (sec)'])
         )
 
         # freq_range = (scaled_cycle_df['scaled_freq'].max() - scaled_cycle_df['scaled_freq'].min()) * 1e6 # MHz
