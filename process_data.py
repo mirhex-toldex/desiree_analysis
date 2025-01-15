@@ -68,10 +68,10 @@ def dynamic_filters(start_time, doppler_df): # finds end time and filters df
 
     # dynamic filter for beginning of scan
     filtered_df = doppler_df[doppler_df[time] >= start_time] 
-    
+
     # dynamic filter for end of scan
     df = filtered_df.sort_values(by=[time]).reset_index(drop=True) # first sort by time 
-  
+
     steps = []
     for i in range(len(df) - 1):
         current_freq = df.loc[i, freq]
@@ -79,6 +79,7 @@ def dynamic_filters(start_time, doppler_df): # finds end time and filters df
         step = next_freq - current_freq
         if step != 0:
             steps.append(np.abs(step))
+
     average_step = np.mean(steps)
 
     for i in range(len(df) - 1):
@@ -151,7 +152,16 @@ def scale_ops(filtered: pd.DataFrame, cycle: int, nested_cycle: int, file, poly_
 
     return coeffs
 
+def filter_last_cycle_by_time(df, time_threshold=50):
+    last_cycle = df['Cycle No.'].max()
+    last_cycle_df = df[df['Cycle No.'] == last_cycle]
+    if last_cycle_df['Time (sec)'].max() < time_threshold:
+        return df[df['Cycle No.'] != last_cycle]  
+    else:
+        return df
+
 def get_scale(file, start_time, doppler_df: pd.DataFrame) -> list:
+    doppler_df = filter_last_cycle_by_time(doppler_df, time_threshold=50)
     doppler_df = doppler_df.dropna(subset=['Laser Frequency (THz)'])
     triangle_scans = ['Sn-120_set1_ref3', 'Sn-120_set1_ref4', 'Sn-120_set1_ref5']
 
@@ -181,6 +191,7 @@ def get_scale(file, start_time, doppler_df: pd.DataFrame) -> list:
             coeffs = scale_ops(filtered, cycle, 0, file, poly_degree)
             cycle_scales.append({'cycle': cycle, 'coefficients': coeffs.tolist()}) 
             filtered_list.append(filtered) # adding all dfs to a list 
+       
     
     filtered_df = pd.concat(filtered_list, ignore_index=True)
 
