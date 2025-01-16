@@ -139,7 +139,7 @@ def scale_ops(filtered: pd.DataFrame, cycle: int, nested_cycle: int, file, poly_
     #     plt.show()
     # # Plot the results
     # if cycle <= 1:
-    # if 'Sn-120' in file:
+    # if 'Sn-120_set8_ref3' in file:
     #     plt.figure()
     #     plt.scatter(filtered['Time (sec)'], filtered['Laser Frequency (THz)'], label='Data')
     #     plt.scatter(avg_bycycle, freq_bycycle, color='red', label='Average')
@@ -157,6 +157,8 @@ def filter_last_cycle_by_time(df, time_threshold=50): # takes care of last cycle
     last_cycle = df['Cycle No.'].max()
     last_cycle_df = df[df['Cycle No.'] == last_cycle]
     if last_cycle_df['Time (sec)'].max() < time_threshold:
+        return df[df['Cycle No.'] != last_cycle]  
+    elif last_cycle_df['Time (sec)'].max() - last_cycle_df['Time (sec)'].min() < 30: # for the case of Sn-120_set8_ref2 where the last cycle only has times 70-80 s ish 
         return df[df['Cycle No.'] != last_cycle]  
     else:
         return df
