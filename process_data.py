@@ -59,7 +59,7 @@ def get_start_time(df: pd.DataFrame) -> float:
     time_df_filtered = time_df[(time_df['Bin center'] >= 0) & (time_df['Bin center'] <= 50)]
     max_count = time_df_filtered['Count raw'].max()
     inj_time = time_df_filtered.loc[time_df_filtered['Count raw'].idxmax(), 'Bin center']
-    start_time = inj_time + 20 # diode starts scanning 20 seconds after inj 
+    start_time = inj_time + 21 # diode starts scanning 20 seconds after inj 
     return start_time
 
 def dynamic_filters(start_time, doppler_df): # finds end time and filters df
@@ -138,7 +138,8 @@ def scale_ops(filtered: pd.DataFrame, cycle: int, nested_cycle: int, file, poly_
     #     plt.title(f'{file} - Cycle {int(cycle)} - Degree {poly_degree}')
     #     plt.show()
     # # Plot the results
-    # if cycle <= 2:
+    # if cycle <= 1:
+    # if 'Sn-120' in file:
     #     plt.figure()
     #     plt.scatter(filtered['Time (sec)'], filtered['Laser Frequency (THz)'], label='Data')
     #     plt.scatter(avg_bycycle, freq_bycycle, color='red', label='Average')
@@ -152,7 +153,7 @@ def scale_ops(filtered: pd.DataFrame, cycle: int, nested_cycle: int, file, poly_
 
     return coeffs
 
-def filter_last_cycle_by_time(df, time_threshold=50):
+def filter_last_cycle_by_time(df, time_threshold=50): # takes care of last cycles that are not a part of the data but somehow they started to be recorded 
     last_cycle = df['Cycle No.'].max()
     last_cycle_df = df[df['Cycle No.'] == last_cycle]
     if last_cycle_df['Time (sec)'].max() < time_threshold:
@@ -161,7 +162,7 @@ def filter_last_cycle_by_time(df, time_threshold=50):
         return df
 
 def get_scale(file, start_time, doppler_df: pd.DataFrame) -> list:
-    doppler_df = filter_last_cycle_by_time(doppler_df, time_threshold=50)
+    doppler_df = filter_last_cycle_by_time(doppler_df, time_threshold=50) # removes last cycle if necessary 
     doppler_df = doppler_df.dropna(subset=['Laser Frequency (THz)'])
     triangle_scans = ['Sn-120_set1_ref3', 'Sn-120_set1_ref4', 'Sn-120_set1_ref5']
 
@@ -186,13 +187,15 @@ def get_scale(file, start_time, doppler_df: pd.DataFrame) -> list:
             coeffs = scale_ops(filtered, cycle, 0, file, poly_degree)  
             cycle_scales.append({'cycle': cycle, 'coefficients': coeffs.tolist()}) 
             filtered_list.append(filtered)
-        else: # all other scans not triangle 
+        else: # all other scans not triangle             
             filtered = dynamic_filters(start_time, group) # returns a df that is cycle specific and now filtered 
+            if filtered['Time (sec)'].max() < 40: # this takes care of Sn-120_set6_ref3 cycle 1
+                continue  # Skip this cycle if max time < 50 s
+
             coeffs = scale_ops(filtered, cycle, 0, file, poly_degree)
             cycle_scales.append({'cycle': cycle, 'coefficients': coeffs.tolist()}) 
             filtered_list.append(filtered) # adding all dfs to a list 
        
-    
     filtered_df = pd.concat(filtered_list, ignore_index=True)
 
     return cycle_scales, filtered_df
@@ -326,7 +329,7 @@ def get_dfs(folder_path):
             bkg = get_bkg(doppler_df)
             scaled_df = process_scaled_df(filtered_df, cycle_scales, bkg)
             time_df, freq_df = time_and_freq_dfs(filtered_df, bkg)
-            yield filename, scaled_df, time_df, freq_df
+            yield filename, scaled_df, time_df, freq_df, isotope
         
 # get_dfs('/Users/xnimir/Desktop/Sn exp 2024/data/set3/')
 
