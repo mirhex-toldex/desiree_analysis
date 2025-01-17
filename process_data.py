@@ -3,6 +3,7 @@ from tdmsdata import TdmsData
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from natsort import natsorted
 import importlib
 import doppler_shift_2024
 import statsmodels.api as sm
@@ -320,7 +321,7 @@ def time_and_freq_dfs(doppler_df: pd.DataFrame, bkg):
     return time_df, freq_df
 
 def get_dfs(folder_path):
-    for filename in os.listdir(folder_path):
+    for filename in natsorted(os.listdir(folder_path)):
         if filename.endswith('.tdms'):
             isotope = next((value for key, value in isotope_mapping.items() if key in filename), None)
             raw_data = read_tdms(folder_path, filename, channel=1) 
