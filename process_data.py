@@ -228,7 +228,8 @@ def process_scaled_df(doppler_df: pd.DataFrame, scale_info: list, bkg: float) ->
         if nested_cycle == None:
             cycle_df = doppler_df[doppler_df['Cycle No.'] == cycle_number].copy() # filter for cycle
             scaled_cycle_df = cycle_df.assign(
-                scaled_freq=lambda df: np.polyval(coeffs, df['Time (sec)'])
+                scaled_freq=lambda df: np.polyval(coeffs, df['Time (sec)']) # for scaled data 
+                # scaled_freq=lambda df: df['Laser Frequency (THz)'] # for unscaled data
             )
             cycle_dfs.append(scaled_cycle_df)
         else: # nested cycles 
@@ -236,7 +237,8 @@ def process_scaled_df(doppler_df: pd.DataFrame, scale_info: list, bkg: float) ->
             for (cycle_no, nested_cycle_no), group in grouped_cycles:
                 if cycle_no == cycle_number and nested_cycle_no == nested_cycle:
                     scaled_group = group.assign(
-                        scaled_freq=lambda df: np.polyval(coeffs, df['Time (sec)'])
+                        scaled_freq=lambda df: np.polyval(coeffs, df['Time (sec)']) # for scaled data 
+                        # scaled_freq=lambda df: df['Laser Frequency (THz)'] # for unscaled data 
                     )
                     cycle_dfs.append(scaled_group)
 
